@@ -13,7 +13,7 @@
 
         #text {
             width: 100%;
-            height: calc(100vh - 200px); /* Трохи зменшив висоту для панелей */
+            height: calc(100vh - 200px);
             border: 1px solid #ccc;
             padding: 10px;
             box-sizing: border-box;
@@ -135,12 +135,12 @@
 
     <div id="text" contenteditable="true">Введіть текст або завантажте файл.
 
-Приклад (увімкніть "Dialogue Mode"):
+Приклад (поставте курсор сюди і натисніть Play):
 — Привіт! (Голос 1)
-— Як справи? (Голос 2)
+— Як справи? (Голос 2, якщо увімкнено Dialogue Mode)
 — Все добре. (Голос 1)
 
-Якщо додатково увімкнути "Repeat Lines" (Count: 2), кожна строчка буде прочитана двічі своїм голосом.
+Якщо додатково увімкнути "Repeat Lines", кожна строчка буде прочитана кілька разів.
 </div>
 
     <script>
@@ -157,7 +157,7 @@
         const textElement = document.getElementById('text');
         
         // Checkboxes
-        const dialogueModeCheck = document.getElementById('dialogueModeCheck'); // NEW
+        const dialogueModeCheck = document.getElementById('dialogueModeCheck'); 
         const repeatUtteranceCheck = document.getElementById('repeatUtteranceCheck');
         
         // Inputs
@@ -260,11 +260,9 @@
                 repeatVoiceSelect.appendChild(option);
             });
             
-            // Restore selections
             if (localStorage.getItem('selectedVoice')) voiceSelect.value = localStorage.getItem('selectedVoice');
             if (localStorage.getItem('selectedRepeatVoice')) repeatVoiceSelect.value = localStorage.getItem('selectedRepeatVoice');
             
-            // Defaults
             if (!voiceSelect.value && filteredVoices.length > 0) voiceSelect.value = filteredVoices[0].name;
             if (!repeatVoiceSelect.value && filteredVoices.length > 0) repeatVoiceSelect.value = filteredVoices[1]?.name || filteredVoices[0].name;
         }
@@ -291,10 +289,38 @@
             fillVoiceSelects(filteredVoices); 
         }
 
-        // --- Logic Core ---
+        // --- Cursor and Highlighting Logic ---
+
+        function getCurrentSpeechUnitIndex() {
+            if (isSelectionMode) return 0;
+            
+            const sel = window.getSelection();
+            if (sel.rangeCount === 0) return 0;
+
+            const range = sel.getRangeAt(0);
+            // Get all text before the cursor
+            const preCursorRange = range.cloneRange();
+            preCursorRange.selectNodeContents(textElement);
+            preCursorRange.setEnd(range.startContainer, range.startOffset);
+            const preCursorText = preCursorRange.toString();
+            
+            const cleanedPreCursor = cleanText(preCursorText);
+            
+            // Count how many speech units fit into the pre-cursor text
+            let charCount = 0;
+            for (let i = 0; i < speechUnits.length; i++) {
+                charCount += speechUnits[i].length;
+                // Small tolerance for spaces/newlines that might be missing in cleaned text
+                if (charCount >= cleanedPreCursor.length) {
+                    return i;
+                }
+            }
+            return 0;
+        }
 
         function highlightSpeechUnit(unitIndex) {
             unhighlightText();
+            
             if (isSelectionMode) {
                 const sel = window.getSelection();
                 if (sel.rangeCount > 0) {
@@ -307,40 +333,64 @@
             }
             
             const unitText = speechUnits[unitIndex];
-            const isLineMode = repeatUtteranceCheck.checked || dialogueModeCheck.checked; // Logic for splitting
+            if (!unitText) return;
+
+            // Find where this specific unit (Nth unit) starts in the original text
+            let currentCursor = 0;
+            let matchIndex = -1;
             
-            // Re-split original text to find match
+            const isLineMode = repeatUtteranceCheck.checked || dialogueModeCheck.checked;
+            
+            // Re-split original text exactly as we did for speechUnits to find the Nth occurrence
             const originalUnits = isLineMode ? 
                 originalText.replace(/\r/g, '').split('\n') : 
                 originalText.split(/(?<=[.!?])\s+/);
             
-            let currentCursor = 0;
+            // Iterate through original units to find the start position of the target unitIndex
             for (let i = 0; i < originalUnits.length; i++) {
-                const originalUnit = originalUnits[i]; // Don't trim yet for index calc
-                const cleanedOriginal = cleanText(originalUnit);
+                const originalUnit = originalUnits[i];
+                const len = originalUnit.length;
                 
-                if (cleanedOriginal === unitText && cleanedOriginal.length > 0) {
-                    const startIndex = originalText.indexOf(originalUnit, currentCursor);
-                    if (startIndex !== -1) {
-                        // Highlight logic
-                        const highlightedText = originalText.slice(0, startIndex) + 
-                            '<span class="highlight">' + originalText.slice(startIndex, startIndex + originalUnit.length) + '</span>' + 
-                            originalText.slice(startIndex + originalUnit.length);
-                        textElement.innerHTML = highlightedText;
-                        return;
-                    }
+                if (i === unitIndex) {
+                    // Found our unit! matchIndex is currentCursor + where it actually starts (ignoring leading whitespace of the block if any)
+                    // Note: originalText.indexOf might pick up previous duplicates, so we must track position manually
+                    matchIndex = currentCursor;
+                    break;
                 }
-                currentCursor += originalUnit.length + (isLineMode ? 1 : 0); // Approximate advance
+                
+                // Advance cursor by length of unit + separator (approximate)
+                // To be precise, we just need the cumulative length of previous blocks
+                currentCursor += len; 
+                
+                // Add back the separator length that was stripped by split? 
+                // Actually split retains punctuation for sentences, but removes \n for lines.
+                if (isLineMode) currentCursor += 1; // Add back newline length
+            }
+
+            if (matchIndex !== -1) {
+                // Now we need to safely wrap the text at matchIndex
+                // Since originalUnits[unitIndex] contains the exact text from originalText (mostly), use its length
+                const unitLength = originalUnits[unitIndex].length;
+                
+                const highlightedText = originalText.slice(0, matchIndex) + 
+                    '<span class="highlight">' + originalText.slice(matchIndex, matchIndex + unitLength) + '</span>' + 
+                    originalText.slice(matchIndex + unitLength);
+                
+                textElement.innerHTML = highlightedText;
             }
         }
 
         function unhighlightText() {
+            // This removes the <span> tags but keeps the text
             textElement.innerHTML = textElement.textContent;
         }
 
         function ReadText() {
             isCancelled = false;
+            
+            // Always capture text content first to avoid HTML tag interference
             originalText = textElement.textContent;
+            
             const selectedText = window.getSelection().toString().trim();
             isSelectionMode = selectedText.length > 0;
             
@@ -348,30 +398,29 @@
             const isRepeat = repeatUtteranceCheck.checked;
             const cleanedText = cleanText(originalText);
             
-            // Strategy for splitting text
             if (isSelectionMode) {
                 const cleanedSelection = cleanText(selectedText);
                 if (cleanedSelection.length === 0) { stopReading(); return; }
                 speechUnits = [cleanedSelection];
-            } else if (isRepeat || isDialogue) {
-                // If either Dialogue OR Repeat is on, we split by Lines
-                speechUnits = splitIntoLinesByNewline(cleanedText); 
+                currentUnitIndex = 0; // Selection always starts at 0 relative to selection
             } else {
-                // Default: Sentences
-                speechUnits = splitIntoSentences(cleanedText);
+                if (isRepeat || isDialogue) {
+                    speechUnits = splitIntoLinesByNewline(cleanedText); 
+                } else {
+                    speechUnits = splitIntoSentences(cleanedText);
+                }
+                // Determine start index based on cursor
+                currentUnitIndex = getCurrentSpeechUnitIndex();
             }
             
             if (speechUnits.length === 0) { stopReading(); return; }
 
-            // Reset Counters
-            currentUnitIndex = 0; // Simplification: always start from top or selection for robustness in this logic
             currentUnitRepeatCount = 0;
             fullLoopCount = parseInt(loopCountInput.value) || 1;
             const maxUnitRepeats = parseInt(utteranceRepeatCountInput.value) || 1;
             const repeatIntervalMs = parseInt(repeatIntervalInput.value) || 500;
             const rate = parseFloat(rateInput.value) || 1.0;
 
-            // Update UI Status
             updateStatus(isRepeat, maxUnitRepeats);
 
             const speakNext = (delay = 0) => {
@@ -389,16 +438,12 @@
                     return;
                 }
 
-                // --- VOICE SELECTION LOGIC ---
                 let selectedVoiceName = voiceSelect.value;
-                
-                // Use Voice 2 if Dialogue Mode is ON AND index is odd
                 if (isDialogue && currentUnitIndex % 2 !== 0) {
                     selectedVoiceName = repeatVoiceSelect.value;
                 }
 
                 const selectedVoice = voices.find(voice => voice.name === selectedVoiceName);
-                
                 const unit = speechUnits[currentUnitIndex];
                 const utterance = new SpeechSynthesisUtterance(unit);
                 utterance.voice = selectedVoice;
@@ -408,8 +453,6 @@
                     if (isRepeat) {
                         currentUnitRepeatCount++;
                         updateStatus(true, maxUnitRepeats);
-                        
-                        // Highlight only on first repeat of the line
                         if (currentUnitRepeatCount === 1) highlightSpeechUnit(currentUnitIndex);
                     } else {
                         highlightSpeechUnit(currentUnitIndex);
@@ -418,13 +461,10 @@
 
                 utterance.onend = () => {
                     if (isRepeat && currentUnitRepeatCount < maxUnitRepeats) {
-                        // Repeat same line, same voice
                         speakNext(repeatIntervalMs);
                     } else {
-                        // Move to next line
                         currentUnitIndex++;
                         currentUnitRepeatCount = 0;
-                        // Delay only if repeating was active to create pause between blocks
                         speakNext(isRepeat ? repeatIntervalMs : 0);
                     }
                 };
@@ -462,7 +502,6 @@
         fontSizeSelect.addEventListener('change', function () { textElement.style.fontSize = `${this.value}px`; });
         fileInput.addEventListener('change', handleFileSelect);
 
-        // Toggle logic
         repeatUtteranceCheck.addEventListener('change', function () {
             utteranceRepeatCountInput.disabled = !this.checked;
             repeatIntervalInput.disabled = !this.checked;
