@@ -42,10 +42,15 @@
             padding: 5px;
             border-radius: 4px;
         }
+        
+        #fileInput {
+            max-width: 150px;
+        }
     </style>
 </head>
 <body>
     <div class="controls">
+        <input type="file" id="fileInput" accept=".txt,.html,.xml,.js,.css">
         <select id="languageSelect"></select>
         <select id="accentSelect"></select> 
         <select id="voiceSelect"></select>
@@ -103,6 +108,7 @@
         const utteranceRepeatCountInput = document.getElementById('utteranceRepeatCount');
         const currentUtteranceRepeatCount = document.getElementById('currentUtteranceRepeatCount');
         const repeatIntervalInput = document.getElementById('repeatInterval');
+        const fileInput = document.getElementById('fileInput'); // НОВЕ: Елемент завантаження файлу
 
         let speechSynthesis = window.speechSynthesis;
         let voices = [];
@@ -117,6 +123,7 @@
         // --- Utility Functions ---
 
         function cleanText(text) {
+            // Видаляє текст у круглих дужках
             return text.replace(/\([^)]*\)/g, '').trim();
         }
 
@@ -158,6 +165,30 @@
         }
 
 
+        // --- File Handling Function (НОВЕ) ---
+        
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                // Вставляємо вміст файлу в редагований блок
+                textElement.textContent = e.target.result;
+                // Скидаємо елемент файлу, щоб можна було завантажити той самий файл знову
+                fileInput.value = ''; 
+            };
+
+            reader.onerror = function() {
+                alert('Не вдалося прочитати файл.');
+            };
+
+            // Читаємо файл як простий текст
+            reader.readAsText(file); 
+        }
+
+
         // --- Voice/Language Management ---
 
         window.speechSynthesis.onvoiceschanged = () => loadVoices();
@@ -170,12 +201,10 @@
 
             voices = speechSynthesis.getVoices();
             if (voices.length === 0) {
-                // Retry if voices are not yet loaded (common on mobile)
                 setTimeout(loadVoices, 500); 
                 return;
             }
 
-            // 1. Load Base Languages (e.g., 'en', 'fr')
             const baseLanguages = [...new Set(voices.map(voice => voice.lang.split('-')[0]))];
             languageSelect.innerHTML = '';
             baseLanguages.forEach(language => {
@@ -188,7 +217,6 @@
             const savedLanguage = localStorage.getItem('selectedLanguage') || 'uk'; 
             languageSelect.value = savedLanguage;
             
-            // 2. Load Accents/Locales for the selected base language
             updateAccents(savedLanguage);
         }
 
@@ -201,7 +229,6 @@
             accents.forEach(accent => {
                 const option = document.createElement('option');
                 option.value = accent;
-                // Use the human-readable function
                 option.innerText = getHumanReadableAccent(accent);
                 accentSelect.appendChild(option);
             });
@@ -209,23 +236,19 @@
             const savedAccent = localStorage.getItem('selectedAccent') || accents[0];
             accentSelect.value = savedAccent;
             
-            // 3. Load specific voices for the selected accent
             updateVoicesByAccent(savedAccent);
         }
 
         function updateVoicesByAccent(fullAccentTag) {
             voiceSelect.innerHTML = '';
-            // Filter by the full tag (e.g., 'en-US')
             const filteredVoices = voices.filter(voice => voice.lang === fullAccentTag);
 
             filteredVoices.forEach(voice => {
                 const option = document.createElement('option');
                 option.value = voice.name;
                 
-                // Cleans up the voice name for better readability
                 let displayName = voice.name;
                 
-                // Remove 'Google' or 'Microsoft' prefixes and the language tag
                 displayName = displayName.replace('Google', '').replace('Microsoft', '').trim();
                 displayName = displayName.replace(new RegExp(`\\s*\\(${fullAccentTag}\\)`, 'i'), '').trim();
                 
@@ -243,32 +266,7 @@
             }
         }
 
-        window.addEventListener('load', loadVoices);
-        
-        languageSelect.addEventListener('change', function () {
-            localStorage.setItem('selectedLanguage', this.value);
-            updateAccents(this.value); 
-        });
-
-        accentSelect.addEventListener('change', function () {
-            localStorage.setItem('selectedAccent', this.value);
-            updateVoicesByAccent(this.value); 
-        });
-
-        voiceSelect.addEventListener('change', function () {
-            localStorage.setItem('selectedVoice', this.value);
-        });
-
-        fontSizeSelect.addEventListener('change', function () {
-            textElement.style.fontSize = `${this.value}px`;
-        });
-        repeatUtteranceCheck.addEventListener('change', function () {
-            utteranceRepeatCountInput.disabled = !this.checked;
-            repeatIntervalInput.disabled = !this.checked;
-            currentUtteranceRepeatCount.textContent = this.checked ? "0 / 1" : "";
-        });
-
-        // --- Speech Logic (Unchanged from previous versions) ---
+        // --- Speech Logic (Core) ---
 
         function getCurrentSpeechUnitIndex() {
             if (isSelectionMode) return 0;
@@ -448,6 +446,31 @@
 
         // --- Event Listeners ---
 
+        window.addEventListener('load', loadVoices);
+        
+        languageSelect.addEventListener('change', function () {
+            localStorage.setItem('selectedLanguage', this.value);
+            updateAccents(this.value); 
+        });
+
+        accentSelect.addEventListener('change', function () {
+            localStorage.setItem('selectedAccent', this.value);
+            updateVoicesByAccent(this.value); 
+        });
+
+        voiceSelect.addEventListener('change', function () {
+            localStorage.setItem('selectedVoice', this.value);
+        });
+
+        fontSizeSelect.addEventListener('change', function () {
+            textElement.style.fontSize = `${this.value}px`;
+        });
+        repeatUtteranceCheck.addEventListener('change', function () {
+            utteranceRepeatCountInput.disabled = !this.checked;
+            repeatIntervalInput.disabled = !this.checked;
+            currentUtteranceRepeatCount.textContent = this.checked ? "0 / 1" : "";
+        });
+
         playButton.addEventListener('click', function () {
             speechSynthesis.cancel(); 
             playButton.style.display = 'none';
@@ -456,6 +479,10 @@
         });
 
         stopButton.addEventListener('click', stopReading);
+
+        // НОВИЙ ОБРОБНИК: Обробка завантаження файлу
+        fileInput.addEventListener('change', handleFileSelect);
+
     </script>
 </body>
 </html>
