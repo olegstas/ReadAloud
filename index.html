@@ -3,14 +3,15 @@
 <head>
     <title>Text Reader</title>
     <style>
-        .highlight {
-            background-color: yellow;
+        /* CSS: Виправлення відображення */
+        .highlight { 
+            background-color: #fff200; 
+            color: #000;
+            display: inline; /* Гарантує, що це не блоковий елемент */
         }
-
-        select {
-            max-width: 200px;
-        }
-
+        
+        select { max-width: 200px; }
+        
         #text {
             width: 100%;
             height: calc(100vh - 220px);
@@ -18,396 +19,253 @@
             padding: 10px;
             box-sizing: border-box;
             overflow: auto;
-            white-space: pre-wrap;
+            white-space: pre-wrap; /* Критично для збереження форматування */
             font-family: monospace;
-            line-height: 1.5;
+            line-height: 1.6; 
             margin-top: 10px;
-            font-size: 20px; /* Базовий розмір */
+            font-size: 20px;
+            cursor: text;
+            /* Вимикаємо зайві відступи */
+            overflow-wrap: break-word;
         }
 
-        body {
-            margin: 0;
-            padding: 10px;
-            box-sizing: border-box;
-            font-family: sans-serif;
-        }
-
-        .controls-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            align-items: center;
-            margin-bottom: 10px;
-            background: #f9f9f9;
-            padding: 5px;
-            border-radius: 5px;
-        }
-
-        .group {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            border-right: 1px solid #ddd;
-            padding-right: 10px;
-        }
-        .group:last-child {
-            border-right: none;
-        }
-
+        body { margin: 0; padding: 10px; box-sizing: border-box; font-family: sans-serif; }
+        
+        .controls-row { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; margin-bottom: 10px; background: #f9f9f9; padding: 5px; border-radius: 5px; }
+        .group { display: flex; align-items: center; gap: 5px; border-right: 1px solid #ddd; padding-right: 10px; }
+        .group:last-child { border-right: none; }
+        
         label { font-size: 0.9em; font-weight: bold; }
         button { padding: 5px 15px; cursor: pointer; font-weight: bold; }
+
+        input[type="file"] { display: none; }
+        .file-upload-btn {
+            border: 1px solid #ccc; display: inline-block; padding: 4px 8px;
+            cursor: pointer; background: #fff; border-radius: 3px; font-size: 0.9em; font-weight: bold;
+        }
+        .file-upload-btn:hover { background: #eee; }
+        
+        #fileNameDisplay {
+            font-size: 0.85em; color: #333; margin-left: 5px; max-width: 150px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            display: inline-block; vertical-align: middle;
+        }
     </style>
 </head>
 <body>
     <div class="controls-row">
-        <div class="group"><input type="file" id="fileInput" accept=".txt,.html,.xml,.js,.css"></div>
         <div class="group">
-            <select id="languageSelect"></select>
-            <select id="accentSelect"></select>
+            <label for="fileInput" class="file-upload-btn">📂 Select File</label>
+            <input type="file" id="fileInput" accept=".txt,.html,.xml,.js,.css">
+            <span id="fileNameDisplay">No file chosen</span>
         </div>
-        <div class="group">
-            <label for="rateInput">Speed:</label>
-            <input type="number" id="rateInput" min="0.1" max="10" step="0.1" value="1.0" style="width: 50px;">
-        </div>
-        <div class="group">
-            <label for="fontSizeSelect">Size:</label>
-            <select id="fontSizeSelect">
-                <option value="14">14</option>
-                <option value="16">16</option>
-                <option value="18">18</option>
-                <option value="20" selected>20</option>
-                <option value="24">24</option>
-                <option value="28">28</option>
-            </select>
-        </div>
+        <div class="group"><select id="languageSelect"></select><select id="accentSelect"></select></div>
+        <div class="group"><label>Speed:</label><input type="number" id="rateInput" min="0.1" max="10" step="0.1" value="1.0" style="width: 50px;"></div>
+        <div class="group"><label>Size:</label><select id="fontSizeSelect"><option value="14">14</option><option value="16">16</option><option value="18">18</option><option value="20" selected>20</option><option value="24">24</option><option value="28">28</option></select></div>
         <button id="playButton">Play</button>
         <button id="stopButton" style="display: none;">Stop</button>
     </div>
-
     <div class="controls-row">
-        <div class="group">
-            <label for="voiceSelect">Voice 1:</label>
-            <select id="voiceSelect"></select>
-        </div>
+        <div class="group"><label>Voice 1:</label><select id="voiceSelect"></select></div>
         <div class="group" style="background-color: #e0f7fa; padding: 3px; border-radius: 3px;">
-            <input type="checkbox" id="dialogueModeCheck">
-            <label for="dialogueModeCheck">Dialogue Mode (Voice 2)</label>
+            <input type="checkbox" id="dialogueModeCheck"><label for="dialogueModeCheck">Dialogue Mode</label>
         </div>
-        <div class="group">
-            <label for="repeatVoiceSelect">Voice 2:</label>
-            <select id="repeatVoiceSelect" disabled></select>
-        </div>
+        <div class="group"><label>Voice 2:</label><select id="repeatVoiceSelect" disabled></select></div>
     </div>
-
     <div class="controls-row">
-        <div class="group">
-            <label for="loopCount">Loop Text:</label>
-            <input type="number" id="loopCount" min="1" value="1" style="width: 40px;">
-        </div>
+        <div class="group"><label>Loop Text:</label><input type="number" id="loopCount" min="1" value="1" style="width: 40px;"></div>
         <div class="group" style="background-color: #fff3e0; padding: 3px; border-radius: 3px;">
-            <input type="checkbox" id="repeatUtteranceCheck">
-            <label for="repeatUtteranceCheck">Repeat Lines</label>
+            <input type="checkbox" id="repeatUtteranceCheck"><label for="repeatUtteranceCheck">Repeat Lines</label>
         </div>
-        <div class="group">
-            <label for="utteranceRepeatCount">Count:</label>
-            <input type="number" id="utteranceRepeatCount" min="1" value="1" disabled style="width: 40px;">
-        </div>
-        <div class="group">
-            <label for="repeatInterval">Wait (ms):</label>
-            <input type="number" id="repeatInterval" min="0" value="500" disabled style="width: 60px;">
-        </div>
-        <div class="group">
-            <span id="statusDisplay" style="color: blue;"></span>
-        </div>
+        <div class="group"><label>Count:</label><input type="number" id="utteranceRepeatCount" min="1" value="1" disabled style="width: 40px;"></div>
+        <div class="group"><label>Wait (ms):</label><input type="number" id="repeatInterval" min="0" value="500" disabled style="width: 60px;"></div>
+        <div class="group"><span id="statusDisplay" style="color: blue;"></span></div>
     </div>
 
     <div id="text" contenteditable="true">Введіть текст або виділіть шматок.
 
-Приклад:
-— Привіт! (Голос 1)
-— Як справи? (Голос 2, якщо Dialogue Mode увімкнено)
-— Все добре. (Голос 1)
+1. Клікніть на рядок -> він виділиться жовтим.
+2. Натисніть Play -> почне читати саме з жовтого рядка.
+3. Якщо грає -> клік перенесе читання на нове місце.
 </div>
 
     <script>
         // --- Elements ---
+        const textElement = document.getElementById('text');
+        const playButton = document.getElementById('playButton');
+        const stopButton = document.getElementById('stopButton');
         const voiceSelect = document.getElementById('voiceSelect');
         const repeatVoiceSelect = document.getElementById('repeatVoiceSelect');
         const languageSelect = document.getElementById('languageSelect');
         const accentSelect = document.getElementById('accentSelect');
-        const textElement = document.getElementById('text');
-        const playButton = document.getElementById('playButton');
-        const stopButton = document.getElementById('stopButton');
-        
-        // Settings
-        const rateInput = document.getElementById('rateInput');
-        const fontSizeSelect = document.getElementById('fontSizeSelect');
         const dialogueModeCheck = document.getElementById('dialogueModeCheck');
         const repeatUtteranceCheck = document.getElementById('repeatUtteranceCheck');
         const utteranceRepeatCountInput = document.getElementById('utteranceRepeatCount');
         const repeatIntervalInput = document.getElementById('repeatInterval');
         const loopCountInput = document.getElementById('loopCount');
         const statusDisplay = document.getElementById('statusDisplay');
+        const rateInput = document.getElementById('rateInput');
+        const fontSizeSelect = document.getElementById('fontSizeSelect');
         const fileInput = document.getElementById('fileInput');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
 
         // --- Globals ---
         let speechSynthesis = window.speechSynthesis;
         let voices = [];
-        let isCancelled = false;
+        let isReadingActive = false; 
         
-        // Playback State
-        let speechUnits = [];
-        let originalText = ''; // Keeps pure text
+        // Core State
+        let originalText = ""; 
+        let unitMap = []; 
         let currentUnitIndex = 0;
+        
         let currentUnitRepeatCount = 0;
         let fullLoopCount = 1;
+
+        // --- Text Processing (Robust Mapping) ---
         
-        // Selection State
-        let savedSelectionRange = null;
-        let isSelectionMode = false;
-
-        // --- Helpers ---
-        function cleanText(text) { return text.replace(/\([^)]*\)/g, '').trim(); }
-        function splitIntoSentences(text) { return text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0); }
-        function splitIntoLines(text) { return text.replace(/\r/g, '').split('\n').filter(s => s.trim().length > 0); }
-
-        function getHumanReadableAccent(accentTag) {
-            const parts = accentTag.split('-');
-            const lang = parts[0].toUpperCase();
-            const reg = parts.length > 1 ? parts[1].toUpperCase() : '';
-            const map = { 'US':'USA', 'GB':'UK', 'UA':'Україна', 'RU':'Росія' };
-            let name = lang === 'UK' ? 'Ukr' : (lang === 'EN' ? 'Eng' : lang);
-            if(reg) return `${name} (${map[reg]||reg})`;
-            return name;
+        function cleanTextForSpeech(text) { 
+            return text.replace(/\([^)]*\)/g, '').trim(); 
         }
-
-        // --- Core Logic ---
-
-        // 1. Save Selection reliably
-        function saveSelectionState() {
-            const sel = window.getSelection();
-            if (sel.rangeCount > 0) {
-                const range = sel.getRangeAt(0);
-                if (range.toString().trim().length > 0) {
-                    savedSelectionRange = range.cloneRange();
-                    return true;
+        
+        function generateUnitMap() {
+            // Force synchronization with DOM
+            originalText = textElement.innerText; // innerText краще зберігає візуальні переноси ніж textContent
+            // Але для exact matching краще textContent, якщо ми обережні.
+            // Для pre-wrap textContent - це стандарт.
+            originalText = textElement.textContent; 
+            
+            unitMap = [];
+            
+            const isLineMode = repeatUtteranceCheck.checked || dialogueModeCheck.checked;
+            
+            if (isLineMode) {
+                // Line Mode: Scan for newlines manually to get exact offsets
+                // We iterate chars to find \n
+                let start = 0;
+                for (let i = 0; i < originalText.length; i++) {
+                    if (originalText[i] === '\n') {
+                        const line = originalText.substring(start, i);
+                        if (line.trim().length > 0) {
+                            unitMap.push({ text: line, start: start, end: i }); // end is EXCLUSIVE of \n
+                        }
+                        start = i + 1;
+                    }
+                }
+                // Last line
+                if (start < originalText.length) {
+                    const line = originalText.substring(start);
+                    if (line.trim().length > 0) {
+                        unitMap.push({ text: line, start: start, end: originalText.length });
+                    }
+                }
+            } else {
+                // Sentence Mode
+                const regex = /[^.!?]+[.!?]*/g;
+                let match;
+                while ((match = regex.exec(originalText)) !== null) {
+                    if (match[0].trim().length > 0) {
+                        unitMap.push({
+                            text: match[0],
+                            start: match.index,
+                            end: match.index + match[0].length
+                        });
+                    }
                 }
             }
-            savedSelectionRange = null;
-            return false;
         }
 
-        // 2. Determine Start Index based on Cursor (if no selection)
-        function getStartIndexFromCursor() {
-            const sel = window.getSelection();
-            if (sel.rangeCount === 0) return 0;
-            
-            const range = sel.getRangeAt(0);
-            // Create a range from start of text to cursor
-            const preCaretRange = range.cloneRange();
-            preCaretRange.selectNodeContents(textElement);
-            preCaretRange.setEnd(range.endContainer, range.endOffset);
-            const textBeforeCaret = preCaretRange.toString();
-            const cleanedBefore = cleanText(textBeforeCaret);
-
-            let count = 0;
-            for(let i=0; i<speechUnits.length; i++) {
-                count += speechUnits[i].length;
-                // If text before caret covers this unit, move to next
-                // Using a loose comparison because of whitespace diffs
-                if (count >= cleanedBefore.length) return i;
-            }
-            return 0;
-        }
-
-        // 3. Highlight Logic (Replaces HTML safely)
+        // --- Visuals (No Ghost Line Fix) ---
+        
         function highlightUnit(index) {
-            // Reset HTML to pure text first to remove old spans
-            textElement.innerHTML = originalText; 
-
-            if (isSelectionMode && savedSelectionRange) {
-                // Selection Mode: We assume speechUnits[0] is the selected text.
-                // However, finding the *exact* range again after innerHTML reset is tricky.
-                // Easier strategy: Search for the specific string occurrence.
-                
-                const textToHighlight = speechUnits[0];
-                const fullText = textElement.textContent;
-                
-                // Use the saved text offset if possible, otherwise find first match
-                // For simplicity in this robust version, we highlight the FIRST occurrence of the selection text
-                // or use a more complex offset tracker. Let's use a simple search for now.
-                const startIdx = fullText.indexOf(textToHighlight);
-                if (startIdx !== -1) {
-                     applyHighlight(startIdx, textToHighlight.length);
-                }
-                return;
-            }
-
-            // Normal Mode
-            const unitText = speechUnits[index];
-            // Calculate global offset
-            let globalOffset = 0;
-            const useLines = repeatUtteranceCheck.checked || dialogueModeCheck.checked;
+            if (unitMap.length === 0) generateUnitMap();
+            if (!unitMap[index]) return;
             
-            // We need to find the Nth unit in the original text
-            const splitFn = useLines ? splitIntoLines : splitIntoSentences;
-            // Re-split original text to map indexes
-            const origUnits = useLines ? originalText.replace(/\r/g, '').split('\n') : originalText.split(/(?<=[.!?])\s+/);
+            const unit = unitMap[index];
+            const fullText = originalText; 
             
-            let currentPos = 0;
-            for(let i=0; i < origUnits.length; i++) {
-                const rawUnit = origUnits[i];
-                if (i === index) {
-                    // Found our unit. Its position is currentPos.
-                    // Note: we highlight the RAW unit (including parentheses if they exist in that line), 
-                    // even if we speak the CLEAN unit. This looks better.
-                    applyHighlight(currentPos, rawUnit.length);
-                    return;
-                }
-                currentPos += rawUnit.length;
-                // Add back the newline character length that split removed if in line mode
-                if (useLines) currentPos += 1; 
-            }
-        }
-
-        function applyHighlight(start, length) {
-            const text = textElement.textContent;
-            const before = text.slice(0, start);
-            const mark = text.slice(start, start + length);
-            const after = text.slice(start + length);
-            textElement.innerHTML = `${before}<span class="highlight">${mark}</span>${after}`;
+            // Highlight strictly the text range, EXCLUDING the newline char at `end`
+            // unit.end in LineMode logic above points exactly TO the \n (exclusive for substring)
+            // So we don't wrap the \n in the span.
+            
+            const before = fullText.substring(0, unit.start);
+            const marked = fullText.substring(unit.start, unit.end);
+            const after = fullText.substring(unit.end);
+            
+            textElement.innerHTML = `${before}<span class="highlight">${marked}</span>${after}`;
         }
 
         function removeHighlight() {
-            if (textElement.innerHTML !== textElement.textContent) {
-                 textElement.innerHTML = textElement.textContent;
+            // Restore pure text safely
+            if (textElement.innerHTML.includes('span')) {
+                textElement.textContent = originalText;
             }
         }
 
-        // --- Playback ---
+        // --- Cursor Logic ---
+        
+        function calculateIndexFromCursor() {
+            const sel = window.getSelection();
+            if (!sel.rangeCount || !textElement.contains(sel.anchorNode)) return currentUnitIndex;
 
-        function ReadText() {
-            // 1. Init
-            isCancelled = false;
-            stopButton.style.display = 'inline';
-            playButton.style.display = 'none';
+            const range = sel.getRangeAt(0);
+            const preCaretRange = range.cloneRange();
+            preCaretRange.selectNodeContents(textElement);
+            preCaretRange.setEnd(range.endContainer, range.endOffset);
             
-            // Capture pure text once. This prevents DOM corruption loop.
-            originalText = textElement.textContent; 
+            const caretOffset = preCaretRange.toString().length;
+            
+            // Refresh map
+            generateUnitMap();
+            
+            if (unitMap.length === 0) return 0;
 
-            // Check for selection BEFORE clearing focus or changing DOM
-            isSelectionMode = saveSelectionState();
-
-            // Prepare Units
-            const cleanedFull = cleanText(originalText);
-            const isLineMode = repeatUtteranceCheck.checked || dialogueModeCheck.checked;
-
-            if (isSelectionMode) {
-                // Use the exact text from the range
-                const selText = savedSelectionRange.toString();
-                // Clean it for speaking, keep it raw for highlighting logic mapping
-                speechUnits = [cleanText(selText)]; 
-                currentUnitIndex = 0;
-            } else {
-                if (isLineMode) {
-                    speechUnits = splitIntoLines(cleanedFull);
-                } else {
-                    speechUnits = splitIntoSentences(cleanedFull);
+            for (let i = 0; i < unitMap.length; i++) {
+                // Check bounds. Allow +1 tolerance for end of line cursor.
+                // But strictly check next unit start to avoid overlap.
+                if (caretOffset >= unitMap[i].start && caretOffset <= unitMap[i].end + 1) {
+                    return i;
                 }
-                // Calc start index
-                currentUnitIndex = getStartIndexFromCursor();
+                // Gap check (empty lines)
+                if (i < unitMap.length - 1 && caretOffset > unitMap[i].end && caretOffset < unitMap[i+1].start) {
+                    return i + 1;
+                }
             }
-
-            if (speechUnits.length === 0) { stopReading(); return; }
-
-            // Counters
-            currentUnitRepeatCount = 0;
-            fullLoopCount = parseInt(loopCountInput.value) || 1;
-            const maxRepeats = parseInt(utteranceRepeatCountInput.value) || 1;
-            const waitTime = parseInt(repeatIntervalInput.value) || 500;
-            const rate = parseFloat(rateInput.value) || 1.0;
-            const doRepeat = repeatUtteranceCheck.checked;
-
-            // --- Recursive Speak Function ---
-            const speakNext = (delay) => {
-                if (isCancelled) return;
-
-                // End of list check
-                if (currentUnitIndex >= speechUnits.length) {
-                    fullLoopCount--;
-                    if (fullLoopCount > 0) {
-                        currentUnitIndex = 0;
-                        loopCountInput.value = fullLoopCount;
-                        speakNext(doRepeat ? waitTime : 0);
-                    } else {
-                        stopReading();
-                    }
-                    return;
-                }
-
-                // --- VOICE LOGIC (Strict Index Based) ---
-                let voiceName = voiceSelect.value; // Default Voice 1
-                const useAltVoice = dialogueModeCheck.checked;
-                
-                // Logic: If Dialogue Mode is ON, Even index = Voice 1, Odd index = Voice 2
-                if (useAltVoice) {
-                    // 0, 2, 4... = Voice 1
-                    // 1, 3, 5... = Voice 2
-                    if (currentUnitIndex % 2 !== 0) {
-                        voiceName = repeatVoiceSelect.value;
-                    }
-                }
-
-                const activeVoice = voices.find(v => v.name === voiceName);
-                const textToSpeak = speechUnits[currentUnitIndex];
-                
-                // Setup Utterance
-                const utter = new SpeechSynthesisUtterance(textToSpeak);
-                utter.voice = activeVoice;
-                utter.rate = rate;
-
-                utter.onstart = () => {
-                    if (isCancelled) { speechSynthesis.cancel(); return; }
-                    
-                    // Update UI
-                    if (doRepeat) {
-                        currentUnitRepeatCount++;
-                        statusDisplay.textContent = `Rep: ${currentUnitRepeatCount}/${maxRepeats}`;
-                    }
-                    
-                    // Highlight: Only redraw highlight if it's the first time reading this unit
-                    // OR if we are not repeating lines (continuous reading)
-                    if (!doRepeat || currentUnitRepeatCount === 1) {
-                        highlightUnit(currentUnitIndex);
-                    }
-                };
-
-                utter.onend = () => {
-                    if (isCancelled) return;
-
-                    // Repeat Logic
-                    if (doRepeat && currentUnitRepeatCount < maxRepeats) {
-                        // REPEAT SAME LINE: Don't change index, Don't change voice
-                        setTimeout(() => speakNext(0), waitTime);
-                    } else {
-                        // NEXT LINE
-                        currentUnitRepeatCount = 0;
-                        currentUnitIndex++;
-                        setTimeout(() => speakNext(0), doRepeat ? waitTime : 0);
-                    }
-                };
-
-                utter.onerror = (e) => { console.error(e); stopReading(); };
-
-                setTimeout(() => speechSynthesis.speak(utter), delay);
-            };
-
-            // Start
-            speakNext(0);
+            return unitMap.length - 1;
         }
+
+        // --- Helper ---
+        function getHumanReadableAccent(accentTag) {
+            const parts = accentTag.replace('_', '-').split('-');
+            const language = parts[0].toUpperCase();
+            const region = parts.length > 1 ? parts[1].toUpperCase() : '';
+            const map = { 'US':'USA', 'GB':'UK', 'UA':'Україна', 'RU':'Росія', 'CN':'China' };
+            let name = language === 'UK' ? 'Ukr' : (language === 'EN' ? 'Eng' : language);
+            if(region) return `${name} (${map[region]||region})`;
+            return name;
+        }
+
+        // --- File Handling ---
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            fileNameDisplay.textContent = file.name;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                stopReading();
+                textElement.textContent = e.target.result;
+                originalText = e.target.result;
+                fileInput.value = ''; 
+                currentUnitIndex = 0;
+                generateUnitMap();
+            };
+            reader.readAsText(file); 
+        }
+
+        // --- Playback Logic ---
 
         function stopReading() {
-            isCancelled = true;
+            isReadingActive = false;
             speechSynthesis.cancel();
             removeHighlight();
             playButton.style.display = 'inline';
@@ -415,104 +273,181 @@
             statusDisplay.textContent = '';
         }
 
-        // --- Setup ---
-        window.addEventListener('load', loadVoices);
-        
-        // Handlers
-        playButton.addEventListener('click', () => {
+        function StartReading() {
             speechSynthesis.cancel();
-            ReadText();
-        });
-        stopButton.addEventListener('click', stopReading);
-        
-        dialogueModeCheck.addEventListener('change', function() {
-            repeatVoiceSelect.disabled = !this.checked;
-        });
-        repeatUtteranceCheck.addEventListener('change', function() {
-            utteranceRepeatCountInput.disabled = !this.checked;
-            repeatIntervalInput.disabled = !this.checked;
-        });
-        fontSizeSelect.addEventListener('change', function() { textElement.style.fontSize = this.value + 'px'; });
-        
-        // File
-        fileInput.addEventListener('change', (e) => {
-            const f = e.target.files[0];
-            if(f) {
-                const r = new FileReader();
-                r.onload = (ev) => textElement.textContent = ev.target.result;
-                r.readAsText(f);
-            }
-        });
+            isReadingActive = true;
+            playButton.style.display = 'none';
+            stopButton.style.display = 'inline';
+            
+            generateUnitMap();
+            
+            if (unitMap.length === 0) { stopReading(); return; }
 
-        // Storage & Voice Populating (Standard)
+            if (currentUnitIndex >= unitMap.length) currentUnitIndex = 0;
+
+            currentUnitRepeatCount = 0;
+            fullLoopCount = parseInt(loopCountInput.value) || 1;
+            updateStatus(repeatUtteranceCheck.checked, parseInt(utteranceRepeatCountInput.value) || 1);
+            
+            speakNext();
+        }
+
+        function speakNext() {
+            if (!isReadingActive) return;
+
+            const maxRepeats = parseInt(utteranceRepeatCountInput.value) || 1;
+            const waitTime = parseInt(repeatIntervalInput.value) || 500;
+            const doRepeat = repeatUtteranceCheck.checked;
+            const isDialogue = dialogueModeCheck.checked;
+            const rate = parseFloat(rateInput.value) || 1.0;
+
+            if (currentUnitIndex >= unitMap.length) {
+                fullLoopCount--;
+                if (fullLoopCount > 0) {
+                    currentUnitIndex = 0;
+                    setTimeout(speakNext, doRepeat ? waitTime : 0);
+                } else {
+                    stopReading();
+                }
+                return;
+            }
+
+            let voiceName = voiceSelect.value;
+            if (isDialogue && currentUnitIndex % 2 !== 0) {
+                voiceName = repeatVoiceSelect.value;
+            }
+            const activeVoice = voices.find(v => v.name === voiceName);
+            if (!activeVoice) { alert("Select a voice!"); stopReading(); return; }
+
+            const unitObj = unitMap[currentUnitIndex];
+            const textToSpeak = cleanTextForSpeech(unitObj.text);
+            
+            const utter = new SpeechSynthesisUtterance(textToSpeak);
+            utter.voice = activeVoice;
+            utter.rate = rate;
+
+            utter.onstart = () => {
+                if (!isReadingActive) { speechSynthesis.cancel(); return; }
+                
+                if (doRepeat) {
+                    currentUnitRepeatCount++;
+                    updateStatus(true, maxRepeats);
+                    if (currentUnitRepeatCount === 1) highlightUnit(currentUnitIndex);
+                } else {
+                    highlightUnit(currentUnitIndex);
+                }
+            };
+
+            utter.onend = () => {
+                if (!isReadingActive) return;
+                if (doRepeat && currentUnitRepeatCount < maxRepeats) {
+                    setTimeout(speakNext, waitTime);
+                } else {
+                    currentUnitRepeatCount = 0;
+                    currentUnitIndex++;
+                    setTimeout(speakNext, doRepeat ? waitTime : 0);
+                }
+            };
+
+            utter.onerror = (e) => { console.error(e); stopReading(); };
+            speechSynthesis.speak(utter);
+        }
+
+        function updateStatus(isRepeat, max) {
+            if (isRepeat) statusDisplay.textContent = `Rep: ${currentUnitRepeatCount}/${max}`;
+            else statusDisplay.textContent = "";
+        }
+
+        // --- Listeners ---
+
+        window.addEventListener('load', loadVoices);
+        window.speechSynthesis.onvoiceschanged = () => loadVoices();
+
         function loadVoices() {
             if (!window.speechSynthesis) return;
             voices = speechSynthesis.getVoices();
-            if (!voices.length) { setTimeout(loadVoices, 500); return; }
-            
-            // Fill Langs
-            const langs = [...new Set(voices.map(v => v.lang.split('-')[0]))];
+            if (voices.length === 0) { setTimeout(loadVoices, 500); return; }
+            const langs = [...new Set(voices.map(v => v.lang.replace('_', '-').split('-')[0]))];
             languageSelect.innerHTML = '';
-            langs.forEach(l => {
-                const opt = document.createElement('option');
-                opt.value = l; opt.innerText = l.toUpperCase();
-                languageSelect.appendChild(opt);
-            });
-            
+            langs.forEach(l => { const o = document.createElement('option'); o.value = l; o.innerText = l.toUpperCase(); languageSelect.appendChild(o); });
             const savedLang = localStorage.getItem('selLang') || 'uk';
-            if (langs.includes(savedLang)) languageSelect.value = savedLang;
-            
+            if (langs.includes(savedLang)) languageSelect.value = savedLang; else if (langs.includes('en')) languageSelect.value = 'en';
             updateAccents();
         }
-
-        languageSelect.addEventListener('change', updateAccents);
-        accentSelect.addEventListener('change', updateVoices);
-
         function updateAccents() {
             const lang = languageSelect.value;
             localStorage.setItem('selLang', lang);
             accentSelect.innerHTML = '';
-            const fil = voices.filter(v => v.lang.startsWith(lang));
+            const fil = voices.filter(v => v.lang.replace('_', '-').startsWith(lang));
             const accs = [...new Set(fil.map(v => v.lang))];
-            accs.forEach(a => {
-                const opt = document.createElement('option');
-                opt.value = a; opt.innerText = getHumanReadableAccent(a);
-                accentSelect.appendChild(opt);
-            });
+            accs.forEach(a => { const o = document.createElement('option'); o.value = a; o.innerText = getHumanReadableAccent(a); accentSelect.appendChild(o); });
             const savedAcc = localStorage.getItem('selAcc');
-            if (accs.includes(savedAcc)) accentSelect.value = savedAcc;
+            if (accs.includes(savedAcc)) accentSelect.value = savedAcc; else if (accs.length > 0) accentSelect.value = accs[0];
             updateVoices();
         }
-
         function updateVoices() {
             const acc = accentSelect.value;
             localStorage.setItem('selAcc', acc);
             const fil = voices.filter(v => v.lang === acc);
-            
-            [voiceSelect, repeatVoiceSelect].forEach(sel => {
-                const currentVal = sel.value; // save current selection if possible
-                sel.innerHTML = '';
-                fil.forEach(v => {
-                    const opt = document.createElement('option');
-                    opt.value = v.name;
-                    let name = v.name.replace(/(Google|Microsoft)\s*/g, '').replace(/\s*\(.*?\)/g, '').trim();
-                    opt.innerText = name;
-                    sel.appendChild(opt);
-                });
+            voiceSelect.innerHTML = ''; repeatVoiceSelect.innerHTML = '';
+            if(fil.length===0) { const o = document.createElement('option'); o.text="No voices"; voiceSelect.add(o); repeatVoiceSelect.add(o.cloneNode(true)); return; }
+            fil.forEach(v => {
+                const o = document.createElement('option'); o.value = v.name;
+                let name = v.name.replace(/(Google|Microsoft)\s*/g, '').replace(/\s*\(.*?\)/g, '').trim();
+                o.innerText = name;
+                if(v.default) o.innerText += ' (default)';
+                voiceSelect.appendChild(o.cloneNode(true));
+                repeatVoiceSelect.appendChild(o);
             });
-            
-            // Restore Logic
-            const v1 = localStorage.getItem('v1');
-            const v2 = localStorage.getItem('v2');
-            if (v1) voiceSelect.value = v1;
-            if (v2) repeatVoiceSelect.value = v2;
-            
-            if (!voiceSelect.value && fil.length) voiceSelect.value = fil[0].name;
-            if (!repeatVoiceSelect.value && fil.length) repeatVoiceSelect.value = fil[1]?.name || fil[0].name;
+            const v1 = localStorage.getItem('v1'); const v2 = localStorage.getItem('v2');
+            if (v1 && fil.some(v => v.name === v1)) voiceSelect.value = v1;
+            if (v2 && fil.some(v => v.name === v2)) repeatVoiceSelect.value = v2;
+            if (!voiceSelect.value && fil.length > 0) voiceSelect.value = fil[0].name;
+            if (!repeatVoiceSelect.value && fil.length > 0) repeatVoiceSelect.value = fil[1]?.name || fil[0].name;
         }
-        
+
+        languageSelect.addEventListener('change', updateAccents);
+        accentSelect.addEventListener('change', updateVoices);
         voiceSelect.addEventListener('change', function(){ localStorage.setItem('v1', this.value) });
         repeatVoiceSelect.addEventListener('change', function(){ localStorage.setItem('v2', this.value) });
+        fontSizeSelect.addEventListener('change', function() { textElement.style.fontSize = this.value + 'px'; });
+        dialogueModeCheck.addEventListener('change', function() { repeatVoiceSelect.disabled = !this.checked; });
+        repeatUtteranceCheck.addEventListener('change', function() {
+            utteranceRepeatCountInput.disabled = !this.checked;
+            repeatIntervalInput.disabled = !this.checked;
+        });
+
+        playButton.addEventListener('click', () => StartReading()); 
+        stopButton.addEventListener('click', stopReading);
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        // --- CLICK HANDLER ---
+        textElement.addEventListener('click', (e) => {
+            const sel = window.getSelection();
+            if (sel.type === 'Range' && !sel.isCollapsed) return;
+
+            setTimeout(() => {
+                const newIndex = calculateIndexFromCursor();
+                // Update Truth
+                currentUnitIndex = newIndex;
+
+                if (isReadingActive) {
+                    StartReading(); // JUMP
+                } else {
+                    highlightUnit(newIndex); // PREVIEW
+                }
+            }, 10);
+        });
+        
+        textElement.addEventListener('dblclick', () => {
+            const sel = window.getSelection();
+            if (sel.rangeCount > 0) sel.collapseToStart();
+            
+            setTimeout(() => {
+                currentUnitIndex = calculateIndexFromCursor();
+                StartReading();
+            }, 20);
+        });
 
     </script>
 </body>
